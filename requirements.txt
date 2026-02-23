@@ -1,3 +1,5 @@
+fastapi
 SQLAlchemy[asyncio]
 aiomysql
 python-dotenv
+uvicorn
