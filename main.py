@@ -1,7 +1,3 @@
-@app.get("/")
-def health_check():
-    return {"status": "ok"}
-
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from datetime import datetime
@@ -63,6 +59,10 @@ async def create_short_url(req: ShortenRequest, db: AsyncSession, retry_times: i
             await db.rollback()
             if attempt == retry_times:
                 raise HTTPException(status_code=409, detail="Short code already exists after retry.")
+
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
 
 @app.post("/shorten", response_model=ShortenResponse)
 async def shorten_url(req: ShortenRequest, db: AsyncSession = Depends(get_db)):
