@@ -1,3 +1,6 @@
+@app.get("/")
+def health_check():
+    return {"status": "ok"}
 
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import RedirectResponse
