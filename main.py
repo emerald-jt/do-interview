@@ -1,3 +1,4 @@
+import logging
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from datetime import datetime
@@ -60,28 +61,40 @@ async def create_short_url(req: ShortenRequest, db: AsyncSession, retry_times: i
             if attempt == retry_times:
                 raise HTTPException(status_code=409, detail="Short code already exists after retry.")
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("url_shortener")
 @app.get("/")
 def health_check():
+    logger.info("Health check endpoint called.")
     return {"status": "ok"}
 
 @app.post("/shorten", response_model=ShortenResponse)
 async def shorten_url(req: ShortenRequest, db: AsyncSession = Depends(get_db)):
-    return await create_short_url(req, db, retry_times=1)
+    logger.info(f"Shorten API called with url={req.url}, custom_alias={req.custom_alias}")
+    response = await create_short_url(req, db, retry_times=1)
+    logger.info(f"Shorten API response: code={response.code}, url={response.url}")
+    return response
 
 @app.get("/{code}")
 async def redirect(code: str, db: AsyncSession = Depends(get_db)):
+    logger.info(f"Redirect API called with code={code}")
     result = await db.execute(select(ShortURL).where(ShortURL.code == code))
     entry = result.scalar()
     if not entry:
+        logger.warning(f"Redirect failed: code={code} not found")
         raise HTTPException(status_code=404, detail="Short URL not found.")
     entry.hits += 1
     await db.commit()
+    logger.info(f"Redirecting to url={entry.url} for code={code}")
     return RedirectResponse(entry.url)
 
 @app.get("/meta/{code}", response_model=MetadataResponse)
 async def get_metadata(code: str, db: AsyncSession = Depends(get_db)):
+    logger.info(f"Metadata API called with code={code}")
     result = await db.execute(select(ShortURL).where(ShortURL.code == code))
     entry = result.scalar()
     if not entry:
+        logger.warning(f"Metadata lookup failed: code={code} not found")
         raise HTTPException(status_code=404, detail="Short URL not found.")
+    logger.info(f"Metadata response: code={code}, url={entry.url}, hits={entry.hits}")
     return MetadataResponse(code=code, url=entry.url, created_at=entry.created_at, hits=entry.hits)
